@@ -1,15 +1,25 @@
+import { db } from '../db';
+import { medicalPracticesTable } from '../db/schema';
 import { type CreateMedicalPracticeInput, type MedicalPractice } from '../schema';
 
-export async function createMedicalPractice(input: CreateMedicalPracticeInput): Promise<MedicalPractice> {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is creating a new medical practice and persisting it in the database.
-    // Should use db.insert() with medicalPracticesTable and return the created practice.
-    return Promise.resolve({
-        id: 0, // Placeholder ID
+export const createMedicalPractice = async (input: CreateMedicalPracticeInput): Promise<MedicalPractice> => {
+  try {
+    // Insert medical practice record
+    const result = await db.insert(medicalPracticesTable)
+      .values({
         name: input.name,
         address: input.address,
         phone: input.phone,
-        email: input.email,
-        created_at: new Date() // Placeholder date
-    } as MedicalPractice);
-}
+        email: input.email
+      })
+      .returning()
+      .execute();
+
+    // Return the created practice
+    const practice = result[0];
+    return practice;
+  } catch (error) {
+    console.error('Medical practice creation failed:', error);
+    throw error;
+  }
+};

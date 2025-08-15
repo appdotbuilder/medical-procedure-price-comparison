@@ -1,15 +1,47 @@
+import { db } from '../db';
+import { medicalProceduresTable } from '../db/schema';
 import { type SearchProceduresInput, type MedicalProcedure } from '../schema';
+import { and, ilike, eq, or, SQL } from 'drizzle-orm';
 
 export async function searchProcedures(input: SearchProceduresInput): Promise<MedicalProcedure[]> {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is to search for medical procedures by name and optionally by category.
-    // 
-    // Implementation should:
-    // 1. Use ILIKE for case-insensitive search on procedure names
-    // 2. If category is provided, filter by exact category match
-    // 3. Limit results by max_results parameter
-    // 4. Order by relevance (exact matches first, then partial matches)
-    // 5. Use db.select() with medicalProceduresTable and appropriate where conditions
+  try {
+    // Build conditions array for filtering
+    const conditions: SQL<unknown>[] = [];
+
+    // Search by name using ILIKE for case-insensitive partial matching
+    const nameCondition = or(
+      ilike(medicalProceduresTable.name, input.query),
+      ilike(medicalProceduresTable.name, `%${input.query}%`)
+    );
     
-    return Promise.resolve([]);
+    if (nameCondition) {
+      conditions.push(nameCondition);
+    }
+
+    // Filter by category if provided
+    if (input.category) {
+      conditions.push(eq(medicalProceduresTable.category, input.category));
+    }
+
+    // Build the final where condition
+    const whereCondition = conditions.length === 1 
+      ? conditions[0] 
+      : conditions.length > 1 
+        ? and(...conditions)
+        : undefined;
+
+    // Build and execute the query in one go to avoid type issues
+    const results = await db.select()
+      .from(medicalProceduresTable)
+      .where(whereCondition)
+      .orderBy(medicalProceduresTable.name)
+      .limit(input.max_results)
+      .execute();
+
+    // Return results (no numeric conversion needed for this table)
+    return results;
+  } catch (error) {
+    console.error('Procedure search failed:', error);
+    throw error;
+  }
 }
